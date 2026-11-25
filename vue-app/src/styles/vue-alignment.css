@@ -1,0 +1,237 @@
+#app {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.app-container {
+  width: min(1100px, calc(100vw - 40px));
+  max-width: 1100px;
+  flex: 0 0 auto;
+}
+
+.calendar-card,
+.task-baskets-card {
+  width: 100%;
+}
+
+.app-container .day-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.app-container .day-title .day-name {
+  margin-bottom: 0;
+}
+
+.calendar-grid {
+  align-items: stretch;
+}
+
+.day-body {
+  height: 100%;
+}
+
+.day-track {
+  min-height: 100%;
+}
+
+.time-block.expanded .block-task.extra-task,
+.time-block:hover .block-task.extra-task {
+  display: block;
+}
+
+.time-block .block-task.extra-task {
+  display: none;
+}
+
+.task-item:last-child {
+  margin-bottom: 0;
+}
+
+.app-container .task-actions {
+  gap: 6px;
+}
+
+.app-container .task-action-btn,
+.app-container .task-delete-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  transition: all 0.16s ease;
+}
+
+.app-container .task-pin-btn {
+  background: #f4f7fb;
+  color: #33415c;
+  border-color: #d9e2ef;
+}
+
+.app-container .task-pin-btn:hover {
+  background: #e7edf6;
+  color: #22314f;
+}
+
+.app-container .task-delete-btn {
+  background: #fff6f6;
+  color: #b42318;
+  border-color: #f2d2cf;
+}
+
+.app-container .task-delete-btn:hover {
+  background: #ffeaea;
+  color: #8f1d13;
+}
+
+.app-container .task-action-icon {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.modal-overlay {
+  display: flex;
+}
+
+.modal {
+  width: 360px;
+}
+
+.modal h3 {
+  margin: 0;
+}
+
+.modal > div label,
+.modal label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal input[type='time'] {
+  min-width: 112px;
+}
+
+.app-container .block-modal-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-container .block-modal-time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-container .block-modal-time-row input[type='time'] {
+  flex: 1;
+}
+
+.app-container .block-modal-time-divider {
+  color: #666;
+  font-weight: 700;
+}
+
+.app-container .modal .question-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-container .modal .question-row > label {
+  display: block;
+}
+
+.app-container .modal .yn-group {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.app-container .block-modal-scope-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.app-container .block-modal-scope-row select {
+  min-width: 220px;
+}
+
+.app-container .block-modal-bucket-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-container .task-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-container .task-modal-row input,
+.app-container .task-modal-row textarea {
+  flex: 1;
+}
+
+.app-container .inline-add-btn {
+  background: #eef2f7;
+  color: #2f3b52;
+  border: 1px solid #d6dde7;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-container .inline-add-btn:hover {
+  background: #e5ebf4;
+}
+
+.app-container .assigned-tasks-title {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.calendar-card.collapsed .calendar-grid {
+  height: 0;
+  min-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.task-baskets-card.collapsed .baskets {
+  display: none;
+}
+
+.bucket-delete-actions {
+  display: flex;
+}
+
+.bucket-delete-actions button {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .calendar-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    height: auto;
+    max-height: 70vh;
+  }
+
+  .baskets {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}

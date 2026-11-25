@@ -1,0 +1,293 @@
+:root {
+  font-family: 'PingFang SC', 'Noto Sans SC', 'Hiragino Sans GB', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #16303f;
+  background: linear-gradient(180deg, #f7fbff 0%, #ecf4f9 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.scheduler-page {
+  min-height: 100vh;
+  padding: 28px 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #d8e5ef;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(17, 56, 79, 0.08);
+  padding: 16px;
+}
+
+.btn {
+  border: 1px solid #a0bacb;
+  border-radius: 10px;
+  background: #f1f8fd;
+  color: #204359;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #e5f1fb;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.btn-danger {
+  color: #8f1e1e;
+  border-color: #d89e9e;
+  background: #fff0f0;
+}
+
+.btn-ghost {
+  background: #ffffff;
+}
+
+.text-btn {
+  border: none;
+  background: transparent;
+  color: #2b566f;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.text-btn-danger {
+  color: #a12828;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid #b8cfe0;
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.calendar-header,
+.tasks-header,
+.type-head,
+.bucket-head,
+.modal-actions,
+.calendar-nav,
+.calendar-meta,
+.time-row,
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-header,
+.tasks-header {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.day-column {
+  border: 1px solid #d7e5f0;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafdff;
+}
+
+.day-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.block-list,
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.block-item,
+.task-item {
+  border: 1px solid #d5e4ef;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.block-item {
+  cursor: pointer;
+}
+
+.block-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.block-tasks {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  color: #4b6779;
+  font-size: 12px;
+}
+
+.empty-line {
+  color: #7a95a8;
+  font-size: 13px;
+  padding: 6px;
+  text-align: center;
+}
+
+.badge {
+  border: 1px solid #b4cad9;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #38586d;
+}
+
+.basket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.basket-type-column {
+  border: 1px solid #d4e2ed;
+  border-radius: 12px;
+  padding: 10px;
+  background: #f8fcff;
+  display: grid;
+  gap: 8px;
+}
+
+.type-head {
+  justify-content: space-between;
+}
+
+.type-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.bucket-card {
+  border: 1px solid #d8e6f0;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+}
+
+.bucket-head {
+  justify-content: space-between;
+}
+
+.task-add-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.task-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.done {
+  text-decoration: line-through;
+  color: #7f98a9;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 39, 54, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal {
+  width: min(520px, 100%);
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.modal h3 {
+  margin: 0;
+}
+
+.modal label {
+  display: grid;
+  gap: 4px;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+}
+
+.time-row {
+  gap: 10px;
+}
+
+.time-row label {
+  flex: 1;
+}
+
+.checkbox-row {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 700px) {
+  .scheduler-page {
+    padding: 12px;
+  }
+  .calendar-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

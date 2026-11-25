@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间料理 - 极简日程管理</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="card calendar-card" id="calendarCard">
+        <div class="calendar-header">
+            <div class="calendar-nav">
+                <button class="nav-btn" onclick="changeWeek(-1)">◀</button>
+                <span id="currentMonthLabel">2026年4月</span>
+                <button class="nav-btn" onclick="changeWeek(1)">▶</button>
+                <span id="currentTaskBanner" class="current-task-banner"></span>
+            </div>
+            <div class="calendar-meta">
+                <button class="today-btn" onclick="goToTodayWeek()">今天</button>
+                <span id="currentWeekLabel" class="week-badge">第1周</span>
+            </div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid">
+            </div>
+        <div class="calendar-toggle-row">
+            <button class="calendar-toggle-btn" id="calendarToggleBtn" onclick="toggleCalendarCollapse()">收起日历</button>
+            <button class="calendar-toggle-btn" id="calendarViewModeBtn" onclick="toggleCalendarViewMode()">显示三天</button>
+        </div>
+    </div>
+
+    <div class="card task-baskets-card" id="taskBasketsCard">
+        <div class="task-baskets-header-row">
+            <h2>📝 事务篮子</h2>
+            <button class="task-baskets-toggle-btn" id="taskBasketsToggleBtn" onclick="toggleTaskBasketsCollapse()">收起事务篮子</button>
+        </div>
+        <div class="baskets" id="basketsContainer"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="blockModal" onclick="closeBlockModalByOverlay(event)">
+    <div class="modal">
+        <h3 id="modalTitle">➕ 设定时间块</h3>
+        <p id="modalDateLabel" style="margin: 0; color: #666; font-size: 14px;"></p>
+        <input type="hidden" id="editBlockId">
+        <input type="hidden" id="targetDateStr">
+        
+        <div><label>开始时间: </label><input type="time" id="startTime" value="09:00" onchange="updateBlockScoreHint()"></div>
+        <div><label>结束时间: </label><input type="time" id="endTime" value="10:00" onchange="updateBlockScoreHint()"></div>
+        <div class="question-row">
+            <label>这段时间方便做笔记吗？</label>
+            <div class="yn-group">
+                <label><input type="checkbox" id="canTakeNotesYes" onclick="setChoiceGroup('canTakeNotes', 'yes')" checked> 是</label>
+                <label><input type="checkbox" id="canTakeNotesNo" onclick="setChoiceGroup('canTakeNotes', 'no')"> 否</label>
+            </div>
+        </div>
+        <div class="question-row">
+            <label>这段时间能忽视干扰吗？</label>
+            <div class="yn-group">
+                <label><input type="checkbox" id="canIsolateYes" onclick="setChoiceGroup('canIsolate', 'yes')"> 是</label>
+                <label><input type="checkbox" id="canIsolateNo" onclick="setChoiceGroup('canIsolate', 'no')" checked> 否</label>
+            </div>
+        </div>
+        <div id="repeatOptionsRow">
+            <label>同步添加: </label>
+            <select id="repeatMode">
+                <option value="none" selected>仅这一天</option>
+                <option value="daily">每一天</option>
+                <option value="workdays">每个工作日</option>
+                <option value="weekly">每个星期的这一天</option>
+            </select>
+        </div>
+        <div id="editScopeRow" style="display:none;">
+            <label>修改范围: </label>
+            <select id="editScope">
+                <option value="thisday" selected>这一天</option>
+                <option value="daily">每一天（相同开始时间）</option>
+                <option value="weekly">每个星期的这一天（相同开始时间）</option>
+            </select>
+        </div>
+        <p class="type-note" id="blockScoreHint">系统会根据时长与灵活度评估时间块得分。<br>当前时间块得分：0.70 类型：🥦</p>
+        <div>
+            <label>事务篮子: </label>
+            <select id="taskBucketFilter" onchange="updateBlockScoreHint()"></select>
+        </div>
+        <div class="assigned-tasks-hint" id="blockAssignedTasksHint"></div>
+
+        <button onclick="saveBlock()" style="background: #4CAF50;">保存块</button>
+        <button onclick="deleteBlock()" id="btnDelete" style="background: #f44336; display: none;">删除块</button>
+        <div id="deleteOptionsRow" style="display:none;">
+            <label>删除范围: </label>
+            <select id="deleteMode">
+                <option value="thisday" selected>这一天</option>
+                <option value="daily">每一天</option>
+                <option value="workdays">每个工作日</option>
+                <option value="weekly">每个星期的这一天</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="taskModal" onclick="closeTaskModalByOverlay(event)">
+    <div class="modal">
+        <h3>✏️ 编辑事务</h3>
+        <input type="hidden" id="editTaskId">
+        <div><label>事务标题: </label><input type="text" id="editTaskTitle" placeholder="输入事务标题..."></div>
+        <div><label>事务详情: </label><textarea id="editTaskDetail" rows="5" placeholder="输入更详细的事务内容..."></textarea></div>
+        <div>
+            <label><input type="checkbox" id="editTaskCompleted"> 标记为已完成</label>
+        </div>
+        <p id="taskCreatedAtLabel" style="margin: 0; color: #666; font-size: 13px;"></p>
+
+        <button onclick="saveTaskFromModal()" style="background: #4CAF50;">保存事务</button>
+        <button onclick="deleteTaskFromModal()" style="background: #f44336;">删除事务</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="bucketNameModal" onclick="closeBucketNameModalByOverlay(event)">
+    <div class="modal bucket-name-modal">
+        <h3>✏️ 重命名篮子</h3>
+        <input type="hidden" id="editBasketType">
+        <input type="hidden" id="editBasketBucket">
+        <input type="text" id="editBasketNameInput" maxlength="12" placeholder="输入篮子名称..." onkeydown="onBasketNameInputKeydown(event)">
+        <button onclick="saveBasketNameFromModal()" style="background: #4CAF50;">保存名称</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="deleteBasketModal" onclick="closeDeleteBasketModalByOverlay(event)">
+    <div class="modal bucket-delete-modal">
+        <h3>🗑️ 删除篮子</h3>
+        <input type="hidden" id="deleteBasketType">
+        <input type="hidden" id="deleteBasketBucket">
+        <p id="deleteBasketMessage" class="bucket-delete-message"></p>
+        <div class="bucket-delete-actions">
+            <button onclick="confirmDeleteBasketFromModal()" style="background: #f44336;">确认删除</button>
+            <button onclick="closeDeleteBasketModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<script src="scripts/date-utils.js"></script>
+<script src="scripts/state-storage.js"></script>
+<script src="scripts/task-assignment.js"></script>
+<script>
+    // ----------------- 日期引擎 -----------------
+    // 使用设备真实日期作为“今天”参考点（按本地时区取当天）
+    const nowForToday = new Date();
+    const TODAY = new Date(nowForToday.getFullYear(), nowForToday.getMonth(), nowForToday.getDate());
+    
+    // 获取给定日期所在周的周一
+    function getMonday(d) {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(date.setDate(diff));
+    }
+    
+    let currentWeekStart = getMonday(TODAY); // 当前显示的周一
+    const weekDayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+    // ----------------- 数据状态 -----------------
+    const DAY_AXIS_START_MINUTES = 6 * 60;
+    const DAY_AXIS_END_MINUTES = DAY_AXIS_START_MINUTES + (24 * 60);
+    const BLANK_MINUTE_PX = 0.3;
+    const ACTIVE_MINUTE_PX = 0.16;
+    const CURRENT_TASK_MAX_CHARS = 20;
+    let blocks = []; // { id, date: 'YYYY-MM-DD', start, end, flexibility, type, taskBucket, taskIds }
+    let tasks = [];  // { id, title, detail, type, bucket, completed, createdAt, blockIds }
+    let draggingTaskId = null;
+    let calendarBodyScrollTop = 0;
+    let syncingBodyScroll = false;
+    let isCalendarCollapsed = false;
+    let isTaskBasketsCollapsed = false;
+    let isThreeDayMode = false;
+    const expandedPendingListKeys = new Set();
+    const BASKET_TYPES = ['meat', 'fruit', 'veggie'];
+    const TYPE_META = {
+        meat: { icon: '🥩', label: '肉' },
+        fruit: { icon: '🍎', label: '果' },
+        veggie: { icon: '🥦', label: '蔬' }
+    };
+    const BUCKET_LABELS = 'ABCDEFGHIJ'.split('');
+    const MIN_BUCKET_COUNT = 2;
+    const MAX_BUCKET_COUNT = 10;
+    let bucketKeysByType = {
+        meat: ['A', 'B'],
+        fruit: ['A', 'B'],
+        veggie: ['A', 'B']
+    };
+    let bucketNames = {};
+
+    // ----------------- 核心渲染逻辑 -----------------
+    function renderApp() {
+        renderBucketNames();
+        renderCalendar();
+        renderTaskBaskets();
+    }
+
+    function getEffectiveTaskType(type) {
+        if (type === 'fruit' || type === 'veggie') return type;
+        return 'meat';
+    }
+
+    function normalizeBucketKey(raw) {
+        const normalized = String(raw || '').trim().toUpperCase();
+        if (!BUCKET_LABELS.includes(normalized)) return 'A';
+        return normalized;
+    }
+
+    function getBucketKeysForType(type) {
+        const safeType = getEffectiveTaskType(type);
+        const keys = bucketKeysByType[safeType];
+        return Array.isArray(keys) ? keys : ['A', 'B'];
+    }
+
+    function isValidBucketForType(type, bucket) {
+        return getBucketKeysForType(type).includes(normalizeBucketKey(bucket));
+    }
+
+    function getBasketNameKey(type, bucket) {
+        const safeType = (type === 'meat' || type === 'fruit' || type === 'veggie') ? type : 'meat';
+        const safeBucket = normalizeBucketKey(bucket);
+        return `${safeType}-${safeBucket}`;
+    }
+
+    function getDefaultBasketName(type, bucket) {
+        return normalizeBucketKey(bucket);
+    }
+
+    function ensureBasketNameKeys(rawNames) {
+        const source = (rawNames && typeof rawNames === 'object') ? rawNames : {};
+        const normalized = {};
+
+        BASKET_TYPES.forEach(type => {
+            const keys = getBucketKeysForType(type);
+            keys.forEach(bucket => {
+                const key = getBasketNameKey(type, bucket);
+                normalized[key] = sanitizeBucketName(source[key], getDefaultBasketName(type, bucket));
+            });
+        });
+
+        const meatKeys = getBucketKeysForType('meat');
+        const fruitKeys = getBucketKeysForType('fruit');
+        const veggieKeys = getBucketKeysForType('veggie');
+        const hasLegacyA = typeof source.A === 'string';
+        const hasLegacyB = typeof source.B === 'string';
+        if (hasLegacyA && meatKeys.includes('A')) {
+            normalized[getBasketNameKey('meat', 'A')] = sanitizeBucketName(source.A, normalized[getBasketNameKey('meat', 'A')]);
+        }
+        if (hasLegacyA && fruitKeys.includes('A')) {
+            normalized[getBasketNameKey('fruit', 'A')] = sanitizeBucketName(source.A, normalized[getBasketNameKey('fruit', 'A')]);
+        }
+        if (hasLegacyA && veggieKeys.includes('A')) {
+            normalized[getBasketNameKey('veggie', 'A')] = sanitizeBucketName(source.A, normalized[getBasketNameKey('veggie', 'A')]);
+        }
+        if (hasLegacyB && meatKeys.includes('B')) {
+            normalized[getBasketNameKey('meat', 'B')] = sanitizeBucketName(source.B, normalized[getBasketNameKey('meat', 'B')]);
+        }
+        if (hasLegacyB && fruitKeys.includes('B')) {
+            normalized[getBasketNameKey('fruit', 'B')] = sanitizeBucketName(source.B, normalized[getBasketNameKey('fruit', 'B')]);
+        }
+        if (hasLegacyB && veggieKeys.includes('B')) {
+            normalized[getBasketNameKey('veggie', 'B')] = sanitizeBucketName(source.B, normalized[getBasketNameKey('veggie', 'B')]);
+        }
+
+        return normalized;
+    }
+
+    function normalizeBucketKeys(rawKeys) {
+        const source = Array.isArray(rawKeys) ? rawKeys : [];
+        const unique = [];
+        source.forEach(key => {
+            const normalized = normalizeBucketKey(key);
+            if (!unique.includes(normalized)) unique.push(normalized);
+        });
+
+        if (!unique.includes('A')) unique.unshift('A');
+        if (!unique.includes('B')) {
+            if (unique.length < MAX_BUCKET_COUNT) unique.push('B');
+            else unique[unique.length - 1] = 'B';
+        }
+
+        const sorted = unique.sort((a, b) => BUCKET_LABELS.indexOf(a) - BUCKET_LABELS.indexOf(b));
+        return sorted.slice(0, MAX_BUCKET_COUNT);
+    }
+
+    function normalizeBucketKeysByType(rawByType) {
+        const source = (rawByType && typeof rawByType === 'object') ? rawByType : {};
+        return {
+            meat: normalizeBucketKeys(source.meat),
+            fruit: normalizeBucketKeys(source.fruit),
+            veggie: normalizeBucketKeys(source.veggie)
+        };
+    }
+
+    function getNextBucketKey(type) {
+        const keys = getBucketKeysForType(type);
+        return BUCKET_LABELS.find(label => !keys.includes(label)) || null;
+    }
+
+    function sanitizeBucketName(raw, fallback = 'A') {
+        const normalized = String(raw || '').replace(/\s+/g, ' ').trim();
+        if (!normalized) return fallback;
+        return normalized.slice(0, 12);
+    }
+
+    function getBasketName(type, bucket) {
+        const key = getBasketNameKey(type, bucket);
+        const fallback = getDefaultBasketName(type, bucket);
+        return sanitizeBucketName(bucketNames[key], fallback);
+    }
+
+    function getBucketDisplayLabel(type, bucket) {
+        return getBasketName(type, bucket);
+    }
+
+    function updateTaskBucketOptionsByType(type, preferredBucket = null) {
+        const bucketSelect = document.getElementById('taskBucketFilter');
+        if (!bucketSelect) return;
+
+        const effectiveType = getEffectiveTaskType(type);
+        const typeKeys = getBucketKeysForType(effectiveType);
+        const currentValue = normalizeBucketKey(bucketSelect.value || 'A');
+        const preferredValue = preferredBucket ? normalizeBucketKey(preferredBucket) : null;
+        const nextValue = preferredValue && typeKeys.includes(preferredValue)
+            ? preferredValue
+            : (typeKeys.includes(currentValue) ? currentValue : (typeKeys[0] || 'A'));
+
+        bucketSelect.innerHTML = typeKeys.map(bucket => (
+            `<option value="${bucket}">${getBucketDisplayLabel(effectiveType, bucket)}</option>`
+        )).join('');
+        bucketSelect.value = nextValue;
+    }
+
+    function renderBucketNames() {
+        bucketKeysByType = normalizeBucketKeysByType(bucketKeysByType);
+        bucketNames = ensureBasketNameKeys(bucketNames);
+
+        updateTaskBucketOptionsByType('meat');
+    }
+
+    function openBasketNameModal(type, bucket) {
+        const safeType = getEffectiveTaskType(type);
+        const safeTypeKeys = getBucketKeysForType(safeType);
+        const normalizedBucket = normalizeBucketKey(bucket);
+        const safeBucket = safeTypeKeys.includes(normalizedBucket) ? normalizedBucket : (safeTypeKeys[0] || 'A');
+        document.getElementById('editBasketType').value = safeType;
+        document.getElementById('editBasketBucket').value = safeBucket;
+        document.getElementById('editBasketNameInput').value = getBasketName(safeType, safeBucket);
+        document.getElementById('bucketNameModal').classList.add('active');
+        document.getElementById('editBasketNameInput').focus();
+        document.getElementById('editBasketNameInput').select();
+    }
+
+    function closeBucketNameModal() {
+        document.getElementById('bucketNameModal').classList.remove('active');
+    }
+
+    function closeBucketNameModalByOverlay(e) {
+        if (e.target.id === 'bucketNameModal') {
+            closeBucketNameModal();
+        }
+    }
+
+    function openDeleteBasketModal(type, bucket, taskCount) {
+        const safeType = getEffectiveTaskType(type);
+        const safeBucket = normalizeBucketKey(bucket);
+        const basketDisplayName = getBasketName(safeType, safeBucket);
+        document.getElementById('deleteBasketType').value = safeType;
+        document.getElementById('deleteBasketBucket').value = safeBucket;
+        document.getElementById('deleteBasketMessage').innerHTML = `<strong>${basketDisplayName}</strong> 中已添加的事务将被永久删除。`;
+        document.getElementById('deleteBasketModal').classList.add('active');
+    }
+
+    function closeDeleteBasketModal() {
+        document.getElementById('deleteBasketModal').classList.remove('active');
+    }
+
+    function closeDeleteBasketModalByOverlay(e) {
+        if (e.target.id === 'deleteBasketModal') {
+            closeDeleteBasketModal();
+        }
+    }
+
+    function confirmDeleteBasketFromModal() {
+        const type = getEffectiveTaskType(document.getElementById('deleteBasketType').value);
+        const bucket = normalizeBucketKey(document.getElementById('deleteBasketBucket').value);
+        closeDeleteBasketModal();
+        executeRemoveBucket(type, bucket);
+    }
+
+    function onBasketNameInputKeydown(e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        saveBasketNameFromModal();
+    }
+
+    function saveBasketNameFromModal() {
+        const type = getEffectiveTaskType(document.getElementById('editBasketType').value);
+        const typeKeys = getBucketKeysForType(type);
+        const bucketRaw = document.getElementById('editBasketBucket').value;
+        const normalizedBucket = normalizeBucketKey(bucketRaw);
+        const bucket = typeKeys.includes(normalizedBucket) ? normalizedBucket : (typeKeys[0] || 'A');
+        const input = document.getElementById('editBasketNameInput');
+        const nextName = sanitizeBucketName(input.value, getBasketName(type, bucket));
+        if (!nextName) {
+            alert('篮子名称不能为空。');
+            return;
+        }
+
+        const key = getBasketNameKey(type, bucket);
+
+        bucketNames = {
+            ...bucketNames,
+            [key]: nextName
+        };
+
+        renderBucketNames();
+        saveState();
+        renderTaskBaskets();
+        updateBlockScoreHint();
+        closeBucketNameModal();
+    }
+
+    function addBucket(type) {
+        const safeType = getEffectiveTaskType(type);
+        const typeKeys = getBucketKeysForType(safeType);
+        if (typeKeys.length >= MAX_BUCKET_COUNT) {
+            alert('最多只能创建 10 个篮子。');
+            return;
+        }
+
+        const nextBucket = getNextBucketKey(safeType);
+        if (!nextBucket) return;
+        bucketKeysByType = {
+            ...bucketKeysByType,
+            [safeType]: [...typeKeys, nextBucket]
+        };
+        bucketNames = ensureBasketNameKeys(bucketNames);
+
+        const nameKey = getBasketNameKey(safeType, nextBucket);
+        bucketNames[nameKey] = getDefaultBasketName(safeType, nextBucket);
+
+        renderApp();
+        saveState();
+    }
+
+    function executeRemoveBucket(type, bucket) {
+        const safeType = getEffectiveTaskType(type);
+        const typeKeys = getBucketKeysForType(safeType);
+        const safeBucket = normalizeBucketKey(bucket);
+        const bucketIndex = typeKeys.indexOf(safeBucket);
+        if (bucketIndex < MIN_BUCKET_COUNT) return;
+
+        bucketKeysByType = {
+            ...bucketKeysByType,
+            [safeType]: typeKeys.filter(key => key !== safeBucket)
+        };
+        tasks = tasks.filter(task => !(task.type === safeType && normalizeBucketKey(task.bucket) === safeBucket));
+        blocks = blocks.map(block => {
+            if (block.type === safeType && normalizeBucketKey(block.taskBucket) === safeBucket) {
+                const nextBucket = getBucketKeysForType(safeType)[0] || 'A';
+                return { ...block, taskBucket: nextBucket, taskIds: [] };
+            }
+            return block;
+        });
+
+        const nextNames = {};
+        Object.keys(bucketNames).forEach(key => {
+            if (key !== getBasketNameKey(safeType, safeBucket)) nextNames[key] = bucketNames[key];
+        });
+        bucketNames = ensureBasketNameKeys(nextNames);
+
+        autoAssignTasks();
+        renderApp();
+        saveState();
+    }
+
+    function removeBucket(type, bucket) {
+        const safeType = getEffectiveTaskType(type);
+        const typeKeys = getBucketKeysForType(safeType);
+        const safeBucket = normalizeBucketKey(bucket);
+        const bucketIndex = typeKeys.indexOf(safeBucket);
+        if (bucketIndex < MIN_BUCKET_COUNT) return;
+
+        const relatedTasks = tasks.filter(task => task.type === safeType && normalizeBucketKey(task.bucket) === safeBucket);
+        if (relatedTasks.length === 0) {
+            executeRemoveBucket(safeType, safeBucket);
+            return;
+        }
+
+        openDeleteBasketModal(safeType, safeBucket, relatedTasks.length);
+    }
+
+    function setChoiceGroup(groupName, selectedValue) {
+        const yesEl = document.getElementById(`${groupName}Yes`);
+        const noEl = document.getElementById(`${groupName}No`);
+        yesEl.checked = selectedValue === 'yes';
+        noEl.checked = selectedValue === 'no';
+        updateBlockScoreHint();
+    }
+
+    function getChoiceGroup(groupName) {
+        const yesChecked = document.getElementById(`${groupName}Yes`).checked;
+        const noChecked = document.getElementById(`${groupName}No`).checked;
+        if (yesChecked && !noChecked) return true;
+        if (!yesChecked && noChecked) return false;
+        return null;
+    }
+
+    function setAnswerControlsByFlexibility(flexibility) {
+        if (flexibility >= 0.95) {
+            setChoiceGroup('canTakeNotes', 'yes');
+            setChoiceGroup('canIsolate', 'yes');
+            return;
+        }
+        if (flexibility >= 0.65) {
+            setChoiceGroup('canTakeNotes', 'yes');
+            setChoiceGroup('canIsolate', 'no');
+            return;
+        }
+        if (flexibility >= 0.35) {
+            setChoiceGroup('canTakeNotes', 'no');
+            setChoiceGroup('canIsolate', 'yes');
+            return;
+        }
+
+        setChoiceGroup('canTakeNotes', 'no');
+        setChoiceGroup('canIsolate', 'no');
+    }
+
+    function updateBlockScoreHint() {
+        const hintEl = document.getElementById('blockScoreHint');
+        const assignedHintEl = document.getElementById('blockAssignedTasksHint');
+        if (!hintEl) return;
+
+        const bucketSelect = document.getElementById('taskBucketFilter');
+        const getTaskBucket = (taskType) => {
+            const typeKeys = getBucketKeysForType(taskType);
+            const selected = normalizeBucketKey(bucketSelect ? bucketSelect.value : 'A');
+            return typeKeys.includes(selected) ? selected : (typeKeys[0] || 'A');
+        };
+
+        const renderAssignedTasksHint = (type) => {
+            if (!assignedHintEl) return;
+
+            const taskBucket = getTaskBucket(type);
+
+            const assignedTasks = type
+                ? tasks.filter(task => !task.completed && task.type === type && task.bucket === taskBucket).slice(0, 3)
+                : [];
+            const slots = [0, 1, 2].map(idx => {
+                const task = assignedTasks[idx];
+                if (task) {
+                    return `<button class="assigned-task-link" onclick="openTaskModalFromBlock(${task.id})">${getTaskDisplayTitle(task)}</button>`;
+                }
+                return '<div class="assigned-task-slot">占位</div>';
+            }).join('');
+
+            assignedHintEl.innerHTML = `<div class="assigned-tasks-title">已分配事务</div>${slots}`;
+            assignedHintEl.style.display = 'block';
+        };
+
+        const start = document.getElementById('startTime').value;
+        const end = document.getElementById('endTime').value;
+        const canTakeNotes = getChoiceGroup('canTakeNotes');
+        const canIsolate = getChoiceGroup('canIsolate');
+
+        if (!start || !end) {
+            updateTaskBucketOptionsByType('meat');
+            hintEl.innerHTML = '系统会根据时长与灵活度评估时间块得分。<br>当前时间块得分：-- 类型：--';
+            renderAssignedTasksHint(null);
+            return;
+        }
+
+        const startMinutes = timeToMinutes(start);
+        const endMinutes = timeToMinutes(end);
+        if (endMinutes <= startMinutes) {
+            updateTaskBucketOptionsByType('meat');
+            hintEl.innerHTML = '系统会根据时长与灵活度评估时间块得分。<br>当前时间块得分：-- 类型：--';
+            renderAssignedTasksHint(null);
+            return;
+        }
+
+        const flexibility = getFlexibilityByAnswers(canTakeNotes, canIsolate);
+        const durationHours = (endMinutes - startMinutes) / 60;
+        const score = durationHours * flexibility;
+        const type = getBlockTypeByScore(durationHours, flexibility);
+        updateTaskBucketOptionsByType(type);
+        const typeIcon = { meat: '🥩', veggie: '🥦', fruit: '🍎', fish: '🐟' }[type] || '--';
+        hintEl.innerHTML = `系统会根据时长与灵活度评估时间块得分。<br>当前时间块得分：${score.toFixed(2)} 类型：${typeIcon}`;
+        renderAssignedTasksHint(type);
+    }
+
+    function openTaskModalFromBlock(taskId) {
+        closeModal();
+        openTaskModal(taskId);
+    }
+
+    function buildWeekTimelineLayout(weekStartStr, weekEndStr) {
+        const weekBlocks = blocks
+            .filter(b => b.date >= weekStartStr && b.date <= weekEndStr)
+            .map(block => {
+                const range = getNormalizedBlockRange(block);
+                if (!range) return null;
+                return {
+                    id: block.id,
+                    start: range.start,
+                    end: range.end,
+                    requiredHeight: getRequiredBlockContentHeight(block, 1)
+                };
+            })
+            .filter(Boolean);
+
+        const pointSet = new Set([DAY_AXIS_START_MINUTES, DAY_AXIS_END_MINUTES]);
+        weekBlocks.forEach(item => {
+            pointSet.add(item.start);
+            pointSet.add(item.end);
+        });
+
+        const points = Array.from(pointSet).sort((a, b) => a - b);
+        const indexMap = new Map(points.map((p, idx) => [p, idx]));
+        const nodeCount = points.length;
+        const edges = Array.from({ length: nodeCount }, () => []);
+        const heights = Array(nodeCount).fill(Number.NEGATIVE_INFINITY);
+        heights[0] = 0;
+
+        for (let i = 0; i < nodeCount - 1; i++) {
+            const segStart = points[i];
+            const segEnd = points[i + 1];
+            const segMinutes = segEnd - segStart;
+            const hasAnyBlock = weekBlocks.some(item => item.start < segEnd && item.end > segStart);
+            const minSegHeight = segMinutes * (hasAnyBlock ? ACTIVE_MINUTE_PX : BLANK_MINUTE_PX);
+            edges[i].push({ to: i + 1, weight: minSegHeight });
+        }
+
+        weekBlocks.forEach(item => {
+            const from = indexMap.get(item.start);
+            const to = indexMap.get(item.end);
+            edges[from].push({ to, weight: item.requiredHeight });
+        });
+
+        for (let i = 0; i < nodeCount; i++) {
+            if (!Number.isFinite(heights[i])) continue;
+            edges[i].forEach(edge => {
+                heights[edge.to] = Math.max(heights[edge.to], heights[i] + edge.weight);
+            });
+        }
+
+        const totalHeight = Math.max(220, Math.ceil(heights[nodeCount - 1]));
+        const clampMinute = minute => Math.max(DAY_AXIS_START_MINUTES, Math.min(minute, DAY_AXIS_END_MINUTES));
+
+        function minuteToTop(minute) {
+            const m = clampMinute(minute);
+            if (m <= points[0]) return 0;
+            if (m >= points[nodeCount - 1]) return heights[nodeCount - 1];
+
+            let idx = 0;
+            while (idx < nodeCount - 1 && points[idx + 1] < m) idx += 1;
+            const leftMinute = points[idx];
+            const rightMinute = points[idx + 1];
+            const leftTop = heights[idx];
+            const rightTop = heights[idx + 1];
+            const ratio = (m - leftMinute) / (rightMinute - leftMinute);
+            return leftTop + ((rightTop - leftTop) * ratio);
+        }
+
+        return { totalHeight, minuteToTop };
+    }
+
+    function placeDayTimeLine(dayTrackEl, topPx) {
+        const line = document.createElement('div');
+        line.className = 'current-time-line';
+        line.style.top = `${topPx}px`;
+        dayTrackEl.appendChild(line);
+    }
+
+    function placeHourGuideLines(dayTrackEl, timelineLayout) {
+        for (let minute = DAY_AXIS_START_MINUTES; minute <= DAY_AXIS_END_MINUTES; minute += 60) {
+            const guide = document.createElement('div');
+            guide.className = 'hour-guide-line';
+            guide.style.top = `${timelineLayout.minuteToTop(minute)}px`;
+            dayTrackEl.appendChild(guide);
+        }
+    }
+
+    function syncDayBodyScroll(sourceBody) {
+        if (syncingBodyScroll) return;
+        syncingBodyScroll = true;
+        calendarBodyScrollTop = sourceBody.scrollTop;
+        document.querySelectorAll('.day-body').forEach(body => {
+            if (body !== sourceBody) body.scrollTop = calendarBodyScrollTop;
+        });
+        syncingBodyScroll = false;
+    }
+
+    function changeWeek(offset) {
+        const stepDays = isThreeDayMode ? 3 : 7;
+        currentWeekStart.setDate(currentWeekStart.getDate() + (offset * stepDays));
+        renderApp();
+    }
+
+    function goToTodayWeek() {
+        currentWeekStart = isThreeDayMode ? new Date(TODAY) : getMonday(TODAY);
+        renderApp();
+    }
+
+    function toggleCalendarViewMode() {
+        isThreeDayMode = !isThreeDayMode;
+        currentWeekStart = isThreeDayMode ? new Date(TODAY) : getMonday(currentWeekStart);
+        const modeBtn = document.getElementById('calendarViewModeBtn');
+        if (modeBtn) {
+            modeBtn.textContent = isThreeDayMode ? '显示一周' : '显示三天';
+        }
+        renderApp();
+        saveState();
+    }
+
+    function toggleCalendarCollapse() {
+        isCalendarCollapsed = !isCalendarCollapsed;
+        const card = document.getElementById('calendarCard');
+        const toggleBtn = document.getElementById('calendarToggleBtn');
+        if (!card || !toggleBtn) return;
+
+        card.classList.toggle('collapsed', isCalendarCollapsed);
+        toggleBtn.textContent = isCalendarCollapsed ? '展开日历' : '收起日历';
+        renderCalendar();
+    }
+
+    function toggleTaskBasketsCollapse() {
+        isTaskBasketsCollapsed = !isTaskBasketsCollapsed;
+        const card = document.getElementById('taskBasketsCard');
+        const toggleBtn = document.getElementById('taskBasketsToggleBtn');
+        if (!card || !toggleBtn) return;
+
+        card.classList.toggle('collapsed', isTaskBasketsCollapsed);
+        toggleBtn.textContent = isTaskBasketsCollapsed ? '展开事务篮子' : '收起事务篮子';
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const currentTaskBanner = document.getElementById('currentTaskBanner');
+        const modeBtn = document.getElementById('calendarViewModeBtn');
+        grid.innerHTML = '';
+        if (modeBtn) {
+            modeBtn.textContent = isThreeDayMode ? '显示一周' : '显示三天';
+        }
+
+        const dayCount = isThreeDayMode ? 3 : 7;
+        grid.style.gridTemplateColumns = `repeat(${dayCount}, minmax(0, 1fr))`;
+
+        const now = new Date();
+        const nowInfo = getBusinessDateInfo(now);
+        const nowDateStr = nowInfo.dateStr;
+        const nowAxisMinute = nowInfo.axisMinute;
+        const todayDateStr = formatDateStr(TODAY);
+        const rangeEnd = new Date(currentWeekStart);
+        rangeEnd.setDate(rangeEnd.getDate() + (dayCount - 1));
+        const rangeStartStr = formatDateStr(currentWeekStart);
+        const rangeEndStr = formatDateStr(rangeEnd);
+        const primaryScrollDateStr = (todayDateStr >= rangeStartStr && todayDateStr <= rangeEndStr)
+            ? todayDateStr
+            : rangeStartStr;
+        const timelineLayout = buildWeekTimelineLayout(rangeStartStr, rangeEndStr);
+
+        let currentVisibleTasks = [];
+        const currentDayBlocks = blocks
+            .filter(b => b.date === nowDateStr)
+            .sort((a, b) => normalizeTimeToAxisMinute(a.start) - normalizeTimeToAxisMinute(b.start));
+        const currentBlock = currentDayBlocks.find(block => {
+            const range = getNormalizedBlockRange(block);
+            if (!range) return false;
+            return nowAxisMinute >= range.start && nowAxisMinute < range.end;
+        });
+        currentVisibleTasks = currentBlock ? getVisibleTasksForBlock(currentBlock) : [];
+
+        if (currentBlock && currentBlock.type === 'fish') {
+            const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const aquariumText = truncateTextByChars('🐠 🌿🫧🌿 🫧🐡 🌿🐟🌿 🎣', CURRENT_TASK_MAX_CHARS);
+            currentTaskBanner.className = 'current-task-banner type-fish';
+            currentTaskBanner.textContent = `${timeLabel} 🐟 当前事务：${aquariumText}`;
+            currentTaskBanner.onclick = () => openModal(currentBlock.date, currentBlock.id);
+            currentTaskBanner.style.cursor = 'pointer';
+            currentTaskBanner.style.display = 'inline-block';
+        } else if (currentVisibleTasks.length > 0) {
+            const typeIconMap = { meat: '🥩', fruit: '🍎', veggie: '🥦', fish: '🐟' };
+            const currentTypeIcon = typeIconMap[currentBlock.type] || '🗂️';
+            const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const taskText = truncateTextByChars(
+                currentVisibleTasks.map(task => getTaskDisplayTitle(task)).join(' | '),
+                CURRENT_TASK_MAX_CHARS
+            );
+            currentTaskBanner.className = `current-task-banner type-${currentBlock.type}`;
+            currentTaskBanner.textContent = `${timeLabel} ${currentTypeIcon} 当前事务：${taskText}`;
+            currentTaskBanner.onclick = () => openModal(currentBlock.date, currentBlock.id);
+            currentTaskBanner.style.cursor = 'pointer';
+            currentTaskBanner.style.display = 'inline-block';
+        } else {
+            currentTaskBanner.className = 'current-task-banner';
+            currentTaskBanner.textContent = '当前无事务：Take a break...';
+            currentTaskBanner.onclick = null;
+            currentTaskBanner.style.cursor = 'default';
+            currentTaskBanner.style.display = 'inline-block';
+        }
+
+        const dayBodyHeight = timelineLayout.totalHeight;
+        
+        // 更新月份标题
+        const monthLabel = `${currentWeekStart.getFullYear()}年${currentWeekStart.getMonth() + 1}月`;
+        document.getElementById('currentMonthLabel').innerText = monthLabel;
+
+        // 更新周数标签（始终显示今天所在周）
+        const weekNumber = getIsoWeekNumber(TODAY);
+        document.getElementById('currentWeekLabel').innerText = `今年第${weekNumber}周`;
+
+        const dayNameMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+        for (let i = 0; i < dayCount; i++) {
+            // 计算当前列的具体日期
+            let cellDate = new Date(currentWeekStart);
+            cellDate.setDate(cellDate.getDate() + i);
+            let dateStr = formatDateStr(cellDate);
+            let isToday = dateStr === formatDateStr(TODAY);
+            const dayName = dayNameMap[cellDate.getDay()];
+
+            const col = document.createElement('div');
+            col.className = 'day-column';
+            
+            // 渲染日期表头
+            col.innerHTML = `
+                <div class="day-title">
+                    <div class="day-name">${dayName}</div>
+                    <div class="date-circle ${isToday ? 'today' : ''}">${cellDate.getDate()}</div>
+                </div>
+                <div class="day-body"><div class="day-track"></div></div>
+            `;
+            const dayBody = col.querySelector('.day-body');
+            const dayTrack = col.querySelector('.day-track');
+            if (dateStr === primaryScrollDateStr) {
+                dayBody.classList.add('scrollbar-primary');
+            } else {
+                dayBody.classList.add('scrollbar-hidden');
+            }
+            dayTrack.style.height = `${dayBodyHeight}px`;
+            placeHourGuideLines(dayTrack, timelineLayout);
+            dayBody.scrollTop = calendarBodyScrollTop;
+            dayBody.addEventListener('scroll', () => syncDayBodyScroll(dayBody));
+            
+            // 点击列空白处添加新时间块
+            col.onclick = (e) => {
+                const clickedTitle = e.target.closest('.day-title');
+                const clickedTrack = e.target.classList.contains('day-body') || e.target.classList.contains('day-track');
+                if (clickedTitle || clickedTrack) {
+                    openModal(dateStr);
+                }
+            };
+
+            // 渲染该日期下的时间块
+            const dayBlocks = blocks
+                .filter(b => b.date === dateStr)
+                .sort((a, b) => normalizeTimeToAxisMinute(a.start) - normalizeTimeToAxisMinute(b.start));
+            const renderedBlockMetas = [];
+            
+            dayBlocks.forEach(block => {
+                const bEl = document.createElement('div');
+                bEl.className = `time-block type-${block.type}`;
+                const range = getNormalizedBlockRange(block);
+                if (!range) return;
+                const visibleTasks = getVisibleTasksForBlock(block).slice(0, 3);
+                const collapsedRequiredHeight = getRequiredBlockContentHeight(block, 1);
+                const expandedRequiredHeight = getRequiredBlockContentHeight(block, 3);
+                const topPx = timelineLayout.minuteToTop(range.start);
+                const bottomPx = timelineLayout.minuteToTop(range.end);
+                const collapsedHeight = Math.max(collapsedRequiredHeight, bottomPx - topPx);
+                const expandedHeight = Math.max(expandedRequiredHeight, bottomPx - topPx);
+
+                bEl.style.top = `${topPx}px`;
+                bEl.style.height = `${collapsedHeight}px`;
+                
+                const taskHtml = visibleTasks.map((task, idx) => {
+                    const extraClass = idx > 0 ? ' extra-task' : '';
+                    return `<div class="block-task${extraClass}">${getTaskDisplayTitle(task)}</div>`;
+                }).join('');
+                const typeIcon = {meat:'🥩', veggie:'🥦', fruit:'🍎', fish:'🐟'}[block.type];
+                const durationHours = (range.end - range.start) / 60;
+
+                bEl.innerHTML = `
+                    <div class="block-time">${typeIcon} ${formatDurationHours(durationHours)}</div>
+                    <div class="block-time">${block.start} - ${block.end}</div>
+                    ${taskHtml}
+                `;
+                bEl.onclick = (e) => { e.stopPropagation(); openModal(dateStr, block.id); };
+                dayTrack.appendChild(bEl);
+                renderedBlockMetas.push({
+                    id: block.id,
+                    el: bEl,
+                    topPx,
+                    collapsedHeight,
+                    expandedHeight
+                });
+            });
+
+            const resetColumnBlocks = () => {
+                renderedBlockMetas.forEach(meta => {
+                    meta.el.style.top = `${meta.topPx}px`;
+                    meta.el.style.height = `${meta.collapsedHeight}px`;
+                    meta.el.classList.remove('expanded');
+                });
+                dayTrack.style.height = `${dayBodyHeight}px`;
+            };
+
+            const expandColumnBlock = (blockId) => {
+                const hoveredMeta = renderedBlockMetas.find(meta => meta.id === blockId);
+                if (!hoveredMeta) return;
+
+                const expandDelta = Math.max(0, hoveredMeta.expandedHeight - hoveredMeta.collapsedHeight);
+                const shiftThreshold = hoveredMeta.topPx + hoveredMeta.collapsedHeight;
+
+                renderedBlockMetas.forEach(meta => {
+                    const shouldShift = meta.id !== blockId && meta.topPx >= shiftThreshold;
+                    meta.el.style.top = `${meta.topPx + (shouldShift ? expandDelta : 0)}px`;
+                    meta.el.style.height = `${meta.id === blockId ? hoveredMeta.expandedHeight : meta.collapsedHeight}px`;
+                    meta.el.classList.toggle('expanded', meta.id === blockId);
+                });
+
+                dayTrack.style.height = `${dayBodyHeight + expandDelta}px`;
+            };
+
+            renderedBlockMetas.forEach(meta => {
+                meta.el.addEventListener('mouseenter', () => expandColumnBlock(meta.id));
+                meta.el.addEventListener('mouseleave', () => resetColumnBlocks());
+            });
+
+            if (dateStr === nowDateStr) {
+                const offsetInBody = timelineLayout.minuteToTop(nowAxisMinute);
+                const clampedOffset = Math.min(dayBodyHeight, Math.max(0, offsetInBody));
+                placeDayTimeLine(dayTrack, clampedOffset);
+            }
+
+            grid.appendChild(col);
+        }
+    }
+
+    function renderTaskBaskets() {
+        const getPendingListKey = (type, bucket) => `${type}|${bucket}`;
+        const basketsContainer = document.getElementById('basketsContainer');
+        if (!basketsContainer) return;
+
+        const columnsHtml = BASKET_TYPES.map(type => {
+            const typeMeta = TYPE_META[type];
+            const typeKeys = getBucketKeysForType(type);
+            let columnInnerHtml = '';
+
+            typeKeys.forEach((bucket, bucketIndex) => {
+            const pendingTasks = tasks.filter(t => t.type === type && t.bucket === bucket && !t.completed);
+            const completedTasks = tasks.filter(t => t.type === type && t.bucket === bucket && t.completed);
+            const pendingListKey = getPendingListKey(type, bucket);
+            const hasOverflowPending = pendingTasks.length > 5;
+            const isPendingExpanded = expandedPendingListKeys.has(pendingListKey);
+            const displayPendingTasks = (hasOverflowPending && !isPendingExpanded)
+                ? pendingTasks.slice(0, 5)
+                : pendingTasks;
+
+            const pendingHtml = displayPendingTasks.map(task => {
+                const createdAtHtml = getTaskCreatedAtHtml(task);
+
+                return `
+                    <div class="task-item" data-id="${task.id}" draggable="true" ondragstart="onTaskDragStart(event, ${task.id})" ondragover="onTaskDragOver(event)" ondrop="onTaskDropOnItem(event, ${task.id}, '${type}', '${bucket}')" ondragend="onTaskDragEnd(event)">
+                        <div class="task-main" onclick="openTaskModal(${task.id})">
+                            <input class="task-checkbox" type="checkbox" onchange="toggleTaskDone(${task.id}, this.checked)" onclick="event.stopPropagation()">
+                            <div class="task-text">
+                                <span class="task-name">${getTaskDisplayTitle(task)}</span>
+                                ${createdAtHtml}
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-btn task-pin-btn" title="置顶事务" onclick="event.stopPropagation(); pinTaskToTop(${task.id}, '${type}', '${bucket}')">↑</button>
+                                <button class="task-action-btn task-delete-btn" title="删除事务" onclick="event.stopPropagation(); deleteTaskQuick(${task.id})">X</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const pendingToggleHtml = hasOverflowPending
+                ? `<button class="pending-toggle-btn" title="${isPendingExpanded ? '收起事务' : '展开事务'}" onclick="togglePendingList('${type}', '${bucket}')">${isPendingExpanded ? '▴' : '▾'}</button>`
+                : '';
+
+            const completedHtml = completedTasks.map(task => `
+                <div class="task-item">
+                    <div class="task-main" onclick="openTaskModal(${task.id})">
+                        <input class="task-checkbox" type="checkbox" checked onchange="toggleTaskDone(${task.id}, this.checked)" onclick="event.stopPropagation()">
+                        <div class="task-text">
+                            <span class="task-name">${getTaskDisplayTitle(task)}</span>
+                            ${getTaskCreatedAtHtml(task)}
+                        </div>
+                        <button class="task-delete-btn" title="删除事务" onclick="event.stopPropagation(); deleteTaskQuick(${task.id})">X</button>
+                    </div>
+                </div>
+            `).join('');
+
+            const placeholderMap = {
+                meat: '添加肉时事务...',
+                fruit: '添加果时事务...',
+                veggie: '添加蔬时事务...'
+            };
+
+            const canDeleteBucket = bucketIndex >= MIN_BUCKET_COUNT;
+            const deleteBtnHtml = canDeleteBucket
+                ? `<button class="basket-delete-btn" title="删除篮子" onclick="removeBucket('${type}', '${bucket}')">删除</button>`
+                : '';
+
+            columnInnerHtml += `
+            <div class="basket basket-${type}">
+                <div class="basket-header">
+                    <h3>${typeMeta.icon} ${typeMeta.label}篮子 <button class="basket-name-btn" onclick="openBasketNameModal('${type}', '${bucket}')">${getBasketName(type, bucket)}</button></h3>
+                    ${deleteBtnHtml}
+                </div>
+                <div class="inline-add-row">
+                    <input class="inline-add-input" id="inlineTaskInput-${type}-${bucket}" type="text" placeholder="${placeholderMap[type]}" onkeydown="onInlineTaskKeydown(event, '${type}', '${bucket}')">
+                    <button class="inline-add-btn" onclick="addTaskFromInline('${type}', '${bucket}')">添加</button>
+                </div>
+                <div class="pending-list" data-type="${type}" data-bucket="${bucket}" ondragover="onTaskDragOver(event)" ondrop="onTaskDropOnList(event, '${type}', '${bucket}')">
+                    ${pendingHtml}
+                </div>
+                ${pendingToggleHtml}
+                <details class="completed-wrap">
+                    <summary>已完成（${completedTasks.length}）</summary>
+                    <div>${completedHtml}</div>
+                </details>
+            </div>`;
+            });
+
+            const addBtnDisabled = typeKeys.length >= MAX_BUCKET_COUNT;
+            columnInnerHtml += `
+            <div class="basket-add-row basket-add-row-${type}">
+                <button class="basket-add-btn" onclick="addBucket('${type}')" ${addBtnDisabled ? 'disabled' : ''}>新增篮子</button>
+            </div>`;
+
+            return `<div class="basket-type-column">${columnInnerHtml}</div>`;
+        }).join('');
+
+        basketsContainer.innerHTML = columnsHtml;
+    }
+
+    function togglePendingList(type, bucket) {
+        const key = `${type}|${bucket}`;
+        if (expandedPendingListKeys.has(key)) {
+            expandedPendingListKeys.delete(key);
+        } else {
+            expandedPendingListKeys.add(key);
+        }
+        renderTaskBaskets();
+    }
+
+    function getTaskCreatedAtHtml(task) {
+        if (!task.createdAt) return '';
+        const d = new Date(task.createdAt);
+        if (Number.isNaN(d.getTime())) return '';
+        return `<span class="task-meta">${formatDateStr(d)}</span>`;
+    }
+
+    function getTaskDisplayTitle(task) {
+        const raw = String(task.title || task.name || '');
+        const firstLine = raw.split(/\r?\n/)[0].trim();
+        return firstLine || '（未命名事务）';
+    }
+
+    function onInlineTaskKeydown(e, type, bucket) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        addTaskFromInline(type, bucket);
+    }
+
+    function addTaskFromInline(type, bucket) {
+        const input = document.getElementById(`inlineTaskInput-${type}-${bucket}`);
+        if (!input) return;
+        const name = input.value.trim();
+        if (!name) return;
+        createTask(name, type, bucket);
+    }
+
+    function openTaskModal(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        document.getElementById('editTaskId').value = String(task.id);
+        document.getElementById('editTaskTitle').value = task.title || task.name || '';
+        document.getElementById('editTaskDetail').value = task.detail || '';
+        document.getElementById('editTaskCompleted').checked = Boolean(task.completed);
+
+        const createdDate = task.createdAt ? new Date(task.createdAt) : null;
+        const createdAtText = (createdDate && !Number.isNaN(createdDate.getTime())) ? formatDateStr(createdDate) : '未知';
+        document.getElementById('taskCreatedAtLabel').innerText = `添加日期: ${createdAtText}`;
+        document.getElementById('taskModal').classList.add('active');
+    }
+
+    function closeTaskModal() {
+        applyTaskCompletionFromModalIfChanged();
+        document.getElementById('taskModal').classList.remove('active');
+    }
+
+    function closeTaskModalByOverlay(e) {
+        if (e.target.id === 'taskModal') {
+            closeTaskModal();
+        }
+    }
+
+    function applyTaskCompletionFromModalIfChanged() {
+        const taskId = Number(document.getElementById('editTaskId').value);
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const modalCompleted = document.getElementById('editTaskCompleted').checked;
+        if (task.completed === modalCompleted) return;
+
+        task.completed = modalCompleted;
+        if (modalCompleted) {
+            task.blockIds = [];
+        }
+
+        autoAssignTasks();
+        saveState();
+        renderApp();
+    }
+
+    function saveTaskFromModal() {
+        const taskId = Number(document.getElementById('editTaskId').value);
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const nextTitle = document.getElementById('editTaskTitle').value.trim();
+        const nextDetail = document.getElementById('editTaskDetail').value.trim();
+        const nextCompleted = document.getElementById('editTaskCompleted').checked;
+
+        if (!nextTitle) return alert('事务标题不能为空！');
+
+        task.title = nextTitle;
+        task.detail = nextDetail;
+        task.completed = nextCompleted;
+
+        if (nextCompleted) {
+            task.blockIds = [];
+        }
+
+        autoAssignTasks();
+        saveState();
+        closeTaskModal();
+        renderApp();
+    }
+
+    function deleteTaskFromModal() {
+        const taskId = Number(document.getElementById('editTaskId').value);
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        tasks = tasks.filter(t => t.id !== taskId);
+        autoAssignTasks();
+        saveState();
+        closeTaskModal();
+        renderApp();
+    }
+
+    function deleteTaskQuick(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        tasks = tasks.filter(t => t.id !== taskId);
+        autoAssignTasks();
+        saveState();
+        renderApp();
+    }
+
+    function toggleTaskDone(taskId, done) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        if (done) {
+            task.completed = true;
+            task.blockIds = [];
+        } else {
+            task.completed = false;
+        }
+
+        autoAssignTasks();
+        saveState();
+        renderApp();
+    }
+
+    function pinTaskToTop(taskId, type, bucket) {
+        const pendingGroupTasks = tasks.filter(task => task.type === type && task.bucket === bucket && !task.completed);
+        const targetIndex = pendingGroupTasks.findIndex(task => task.id === taskId);
+        if (targetIndex <= 0) return;
+
+        const [targetTask] = pendingGroupTasks.splice(targetIndex, 1);
+        pendingGroupTasks.unshift(targetTask);
+
+        let pendingIdx = 0;
+        tasks = tasks.map(task => {
+            if (task.type === type && task.bucket === bucket && !task.completed) {
+                const nextTask = pendingGroupTasks[pendingIdx];
+                pendingIdx += 1;
+                return nextTask;
+            }
+            return task;
+        });
+
+        autoAssignTasks();
+        saveState();
+        renderApp();
+    }
+
+    function onTaskDragStart(e, taskId) {
+        draggingTaskId = taskId;
+        e.currentTarget.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function onTaskDragOver(e) {
+        e.preventDefault();
+    }
+
+    function onTaskDragEnd(e) {
+        e.currentTarget.classList.remove('dragging');
+        draggingTaskId = null;
+    }
+
+    function updatePendingOrderFromDom(type, bucket) {
+        const container = document.querySelector(`.pending-list[data-type="${type}"][data-bucket="${bucket}"]`);
+        if (!container) return;
+
+        const domIds = Array.from(container.querySelectorAll('.task-item[data-id]'))
+            .map(el => Number(el.dataset.id));
+
+        const idToTask = new Map(tasks.map(t => [t.id, t]));
+        let idx = 0;
+        tasks = tasks.map(task => {
+            if (task.type === type && task.bucket === bucket && !task.completed) {
+                const orderedTask = idToTask.get(domIds[idx]);
+                idx += 1;
+                return orderedTask || task;
+            }
+            return task;
+        });
+    }
+
+    function onTaskDropOnItem(e, targetTaskId, type, bucket) {
+        e.preventDefault();
+        if (draggingTaskId === null || draggingTaskId === targetTaskId) return;
+        const draggingTask = tasks.find(t => t.id === draggingTaskId);
+        if (!draggingTask || draggingTask.type !== type || draggingTask.bucket !== bucket || draggingTask.completed) return;
+
+        const draggedEl = document.querySelector(`.task-item[data-id="${draggingTaskId}"]`);
+        const targetEl = document.querySelector(`.task-item[data-id="${targetTaskId}"]`);
+        if (!draggedEl || !targetEl) return;
+
+        const targetRect = targetEl.getBoundingClientRect();
+        const placeAfter = e.clientY > (targetRect.top + targetRect.height / 2);
+        const parent = targetEl.parentNode;
+
+        if (placeAfter) {
+            parent.insertBefore(draggedEl, targetEl.nextSibling);
+        } else {
+            parent.insertBefore(draggedEl, targetEl);
+        }
+
+        updatePendingOrderFromDom(type, bucket);
+        autoAssignTasks();
+        saveState();
+        renderApp();
+        draggingTaskId = null;
+    }
+
+    function onTaskDropOnList(e, type, bucket) {
+        e.preventDefault();
+        if (draggingTaskId === null) return;
+        const draggingTask = tasks.find(t => t.id === draggingTaskId);
+        if (!draggingTask || draggingTask.type !== type || draggingTask.bucket !== bucket || draggingTask.completed) return;
+
+        const container = e.currentTarget;
+        const draggedEl = document.querySelector(`.task-item[data-id="${draggingTaskId}"]`);
+        if (!draggedEl || !container) return;
+
+        container.appendChild(draggedEl);
+        updatePendingOrderFromDom(type, bucket);
+        autoAssignTasks();
+        saveState();
+        renderApp();
+        draggingTaskId = null;
+    }
+
+    // ----------------- 弹窗控制与时间块保存 -----------------
+    function openModal(dateStr, blockId = null) {
+        document.getElementById('blockModal').classList.add('active');
+        document.getElementById('targetDateStr').value = dateStr;
+        document.getElementById('modalDateLabel').innerText = `目标日期: ${dateStr}`;
+        
+        if (blockId) {
+            const block = blocks.find(b => b.id === blockId);
+            document.getElementById('modalTitle').innerText = '✏️ 编辑时间块';
+            document.getElementById('editBlockId').value = block.id;
+            document.getElementById('startTime').value = block.start;
+            document.getElementById('endTime').value = block.end;
+            const preferredBucket = normalizeBucketKey(block.taskBucket || 'A');
+            updateTaskBucketOptionsByType(block.type, preferredBucket);
+            setAnswerControlsByFlexibility(block.flexibility ?? 0.7);
+            document.getElementById('repeatMode').value = 'none';
+            document.getElementById('repeatOptionsRow').style.display = 'none';
+            document.getElementById('editScope').value = 'thisday';
+            document.getElementById('editScopeRow').style.display = 'block';
+            document.getElementById('deleteMode').value = 'thisday';
+            document.getElementById('deleteOptionsRow').style.display = 'block';
+            document.getElementById('btnDelete').style.display = 'block';
+        } else {
+            document.getElementById('modalTitle').innerText = '➕ 设定时间块';
+            document.getElementById('editBlockId').value = '';
+            updateTaskBucketOptionsByType('meat', 'A');
+            setChoiceGroup('canTakeNotes', 'yes');
+            setChoiceGroup('canIsolate', 'no');
+            document.getElementById('repeatMode').value = 'none';
+            document.getElementById('repeatOptionsRow').style.display = 'block';
+            document.getElementById('editScope').value = 'thisday';
+            document.getElementById('editScopeRow').style.display = 'none';
+            document.getElementById('deleteMode').value = 'thisday';
+            document.getElementById('deleteOptionsRow').style.display = 'none';
+            document.getElementById('btnDelete').style.display = 'none';
+        }
+
+        updateBlockScoreHint();
+    }
+
+    function closeModal() { document.getElementById('blockModal').classList.remove('active'); }
+
+    function closeBlockModalByOverlay(e) {
+        if (e.target.id === 'blockModal') {
+            closeModal();
+        }
+    }
+
+    function saveBlock() {
+        const dateStr = document.getElementById('targetDateStr').value;
+        const id = document.getElementById('editBlockId').value;
+        const start = document.getElementById('startTime').value;
+        const end = document.getElementById('endTime').value;
+        const canTakeNotes = getChoiceGroup('canTakeNotes');
+        const canIsolate = getChoiceGroup('canIsolate');
+
+        if (canTakeNotes === null || canIsolate === null) {
+            return alert('每个问题都需要且只能选择“是”或“否”！');
+        }
+
+        const flexibility = getFlexibilityByAnswers(canTakeNotes, canIsolate);
+        const repeatMode = document.getElementById('repeatMode').value;
+        const editScope = document.getElementById('editScope').value;
+
+        const startMinutes = timeToMinutes(start);
+        const endMinutes = timeToMinutes(end);
+
+        if (endMinutes <= startMinutes) {
+            return alert('结束时间必须晚于开始时间！');
+        }
+
+        const durationHours = (endMinutes - startMinutes) / 60;
+        const type = getBlockTypeByScore(durationHours, flexibility);
+        const selectedBucket = normalizeBucketKey(document.getElementById('taskBucketFilter').value || 'A');
+        const typeKeys = getBucketKeysForType(type);
+        const taskBucket = typeKeys.includes(selectedBucket) ? selectedBucket : (typeKeys[0] || 'A');
+
+        if(id) {
+            const blockIndex = blocks.findIndex(b => b.id == id);
+            if (blockIndex < 0) return;
+            const originalStart = blocks[blockIndex].start;
+
+            if (editScope === 'daily') {
+                blocks = blocks.map(block => {
+                    if (block.start !== originalStart) return block;
+                    return { ...block, start, end, flexibility, type, taskBucket };
+                });
+            } else if (editScope === 'weekly') {
+                const weeklyDateSet = new Set(getRepeatDates(dateStr, 'weekly'));
+                blocks = blocks.map(block => {
+                    if (block.start !== originalStart) return block;
+                    if (!weeklyDateSet.has(block.date)) return block;
+                    return { ...block, start, end, flexibility, type, taskBucket };
+                });
+            } else {
+                blocks[blockIndex] = { ...blocks[blockIndex], date: dateStr, start, end, flexibility, type, taskBucket };
+            }
+        } else {
+            const targetDates = getRepeatDates(dateStr, repeatMode);
+            targetDates.forEach(targetDate => {
+                const duplicated = blocks.some(b => b.date === targetDate && b.start === start && b.end === end);
+                if (!duplicated) {
+                    blocks.push({ id: Date.now() + Math.random(), date: targetDate, start, end, flexibility, type, taskBucket, taskIds: [] });
+                }
+            });
+        }
+        
+        autoAssignTasks(); 
+        saveState();
+        closeModal();
+        renderApp();
+    }
+
+    function deleteBlock() {
+        const id = document.getElementById('editBlockId').value;
+        const block = blocks.find(b => b.id == id);
+
+        if (!block) return;
+
+        const deleteMode = document.getElementById('deleteMode').value;
+        const targetDateSet = new Set(getRepeatDates(block.date, deleteMode === 'thisday' ? 'none' : deleteMode));
+
+        const blocksToDelete = blocks.filter(b => {
+            if (b.start !== block.start) return false;
+            if (deleteMode === 'thisday') return b.date === block.date;
+            return targetDateSet.has(b.date);
+        });
+
+        const deleteIds = new Set(blocksToDelete.map(b => b.id));
+
+        blocks = blocks.filter(b => !deleteIds.has(b.id));
+        autoAssignTasks();
+        saveState();
+        closeModal();
+        renderApp();
+    }
+
+    // ----------------- 事务与自动分配逻辑 -----------------
+    function createTask(title, type, bucket = 'A') {
+        const safeBucket = isValidBucketForType(type, bucket) ? normalizeBucketKey(bucket) : (getBucketKeysForType(type)[0] || 'A');
+        tasks.push({ id: Date.now() + Math.random(), title, detail: '', type, bucket: safeBucket, completed: false, createdAt: new Date().toISOString(), blockIds: [] });
+        autoAssignTasks();
+        saveState();
+        renderApp();
+    }
+
+    // 初始启动
+    async function initApp() {
+        await loadState();
+        currentWeekStart = isThreeDayMode ? new Date(TODAY) : getMonday(TODAY);
+        autoAssignTasks();
+        renderApp();
+        setInterval(() => { renderCalendar(); }, 60000);
+    }
+
+    initApp();
+</script>
+</body>
+</html>
